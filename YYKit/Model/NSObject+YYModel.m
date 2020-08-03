@@ -527,8 +527,8 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     while (curClassInfo && curClassInfo.superCls != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
         for (YYClassPropertyInfo *propertyInfo in curClassInfo.propertyInfos.allValues) {
             if (!propertyInfo.name) continue;
-            if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;
-            if (whitelist && ![whitelist containsObject:propertyInfo.name]) continue;
+            if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;            // 过滤黑名单 property
+            if (whitelist && ![whitelist containsObject:propertyInfo.name]) continue;           // 如果设置白名单，只对白名单内的属性赋值
             _YYModelPropertyMeta *meta = [_YYModelPropertyMeta metaWithClassInfo:classInfo
                                                                     propertyInfo:propertyInfo
                                                                          generic:genericMapper[propertyInfo.name]];
@@ -570,7 +570,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
                     propertyMeta->_mappedToKeyPath = keyPath;
                     [keyPathPropertyMetas addObject:propertyMeta];
                 }
-                propertyMeta->_next = mapper[mappedToKey] ?: nil;
+                propertyMeta->_next = mapper[mappedToKey] ?: nil;   // 处理一个 key 对应多个属性
                 mapper[mappedToKey] = propertyMeta;
                 
             } else if ([mappedToKey isKindOfClass:[NSArray class]]) {
@@ -594,7 +594,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
                 }
                 if (!propertyMeta->_mappedToKey) return;
                 
-                propertyMeta->_mappedToKeyArray = mappedToKeyArray;
+                propertyMeta->_mappedToKeyArray = mappedToKeyArray; // 一个属性对应多个 key ,并且以数组顺序作为优先级
                 [multiKeysPropertyMetas addObject:propertyMeta];
                 
                 propertyMeta->_next = mapper[mappedToKey] ?: nil;
@@ -602,7 +602,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
             }
         }];
     }
-    
+    // 将类本身的属性加入映射表 mapper，并更新 _mappedToKey 为原属性名
     [allPropertyMetas enumerateKeysAndObjectsUsingBlock:^(NSString *name, _YYModelPropertyMeta *propertyMeta, BOOL *stop) {
         propertyMeta->_mappedToKey = name;
         propertyMeta->_next = mapper[name] ?: nil;
@@ -1137,9 +1137,9 @@ static void ModelSetWithPropertyMetaArrayFunction(const void *_propertyMeta, voi
     if (!propertyMeta->_setter) return;
     id value = nil;
     
-    if (propertyMeta->_mappedToKeyArray) {
+    if (propertyMeta->_mappedToKeyArray) { // 对应多个 key
         value = YYValueForMultiKeys(dictionary, propertyMeta->_mappedToKeyArray);
-    } else if (propertyMeta->_mappedToKeyPath) {
+    } else if (propertyMeta->_mappedToKeyPath) { // key path
         value = YYValueForKeyPath(dictionary, propertyMeta->_mappedToKeyPath);
     } else {
         value = [dictionary objectForKey:propertyMeta->_mappedToKey];
